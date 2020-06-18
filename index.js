@@ -9,6 +9,7 @@
  * 
  */
 const dialogflow = require('@google-cloud/dialogflow');
+
 /*
 const parse = require('csv-parse/lib/sync');
 const fs = require('fs');
@@ -49,6 +50,14 @@ var argv = require('yargs')
             })
             .option("response-text", {
                 describe: "Response text",
+                demandOption: true,
+                requiresArg: true,
+                type: "string"
+            })
+        });
+        yargs.command("csv", "Create intents from CSV", (yargs) => {
+            yargs.option("csv-file", {
+                describe: "CSV file",
                 demandOption: true,
                 requiresArg: true,
                 type: "string"
@@ -123,6 +132,35 @@ async function createIntent(displayName, trainingPhrase, responseText) {
     }
 }
 
+
+async function createIntentsFromCSV(csvFile) {
+    const fs = require('fs');
+    const csvParse = require('csv-parse/lib/sync');
+    const crypto = require('crypto');
+
+
+
+    const fileData = fs.readFileSync(csvFile);
+    const records = csvParse(fileData, {
+        "columns": false,
+        "skip_empty_lines": true,
+        "from_line": 2 // Skip the header line
+
+    });
+    //console.log(records);
+    for (let i=0; i<records.length; i++) {
+        const record = records[i];
+        const trainingPhrase = record[0];
+        const responseText = record[1];
+        const hash = crypto.createHash('sha256');
+        hash.update(trainingPhrase);
+        const displayName = hash.digest('hex');
+
+        //console.log(`Display Name: ${displayName}, Training: ${trainingPhrase}, Response Text: ${responseText} `);
+        await createIntent(displayName, trainingPhrase, responseText)
+    };
+}
+
 switch(argv._[0]) {
     case "intent":
         //console.log("Processing intent");
@@ -130,6 +168,10 @@ switch(argv._[0]) {
             case "create":
                 //console.log("Processing intent create");
                 createIntent(argv.displayName, argv.trainingPhrase, argv.responseText);
+                break;
+            case "csv":
+                //console.log("Create intents from a CSV");
+                createIntentsFromCSV(argv.csvFile);
                 break;
             default:
                 console.log("Unknown command following intent");
